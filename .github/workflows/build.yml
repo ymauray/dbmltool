@@ -1,0 +1,81 @@
+name: Build binaries
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            archive_name: dbml2sql-linux.tar.gz
+          - os: macos-latest
+            archive_name: dbml2sql-macos.tar.gz
+          - os: windows-latest
+            archive_name: dbml2sql-windows.tar.gz
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install build dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Build binary
+        run: pyinstaller --onefile --name dbml2sql dbml2sql.py
+
+      - name: Package binary
+        # Le binaire produit s'appelle "dbml2sql" (ou "dbml2sql.exe" sous Windows)
+        # sur toutes les plateformes, sans suffixe. GitHub interdisant plusieurs
+        # assets de release portant le meme nom, on l'emballe dans une archive
+        # nommee par plateforme : seule l'archive porte un nom distinct, pas le
+        # binaire qu'elle contient.
+        shell: bash
+        run: |
+          cd dist
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            tar -czf "../${{ matrix.archive_name }}" dbml2sql.exe
+          else
+            tar -czf "../${{ matrix.archive_name }}" dbml2sql
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.archive_name }}
+          path: ${{ matrix.archive_name }}
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create release and attach binaries
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            artifacts/dbml2sql-linux.tar.gz/dbml2sql-linux.tar.gz \
+            artifacts/dbml2sql-macos.tar.gz/dbml2sql-macos.tar.gz \
+            artifacts/dbml2sql-windows.tar.gz/dbml2sql-windows.tar.gz \
+            --title "${{ github.ref_name }}" \
+            --generate-notes

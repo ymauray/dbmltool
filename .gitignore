@@ -11,6 +11,8 @@ build/
 dist/
 *.egg-info/
 *.egg
+*.spec
+dbml2sql-*.tar.gz
 
 # Environnements virtuels
 venv/

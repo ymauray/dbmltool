@@ -26,6 +26,7 @@ Le projet a été construit de façon itérative. Voici les besoins exprimés, d
 7. **Automatisation.** Fournir un `Makefile` avec au moins `make run` (génération) et `make tests` (tests).
 8. **Valeurs par défaut de fichier.** Permettre de déclarer, sur une seule table du fichier, `default_tablespace`/`default_grants` à la place de `tablespace`/`grants`. Ces valeurs sont appliquées à toute table qui n'a pas sa propre valeur (et qui, sans cela, provoquerait une erreur de tablespace manquant). De même, un seul index du fichier peut déclarer `default_tablespace`, appliqué à tout index sans tablespace propre. Déclarer une valeur par défaut plusieurs fois dans le fichier est une erreur.
 9. **Erreurs d'entrée/sortie gérées proprement.** Un fichier d'entrée introuvable/illisible, ou un fichier de sortie impossible à créer (répertoire inexistant, permissions insuffisantes, chemin invalide), doivent produire un message d'erreur clair sur la sortie d'erreur et un code de sortie non nul — jamais une trace Python brute (`Traceback`).
+10. **Binaires autonomes multiplateformes.** Produire, via des runners GitHub Actions, un exécutable autonome pour Linux, macOS et Windows à chaque tag de version, sans suffixer le nom du binaire par la plateforme. Mettre en place Dependabot pour les mises à jour automatiques des dépendances.
 
 ## Spécifications 🔧
 
@@ -196,26 +197,54 @@ make tests
 python -m unittest discover -s tests -v
 ```
 
+### Binaire autonome 📦
+
+Le programme n'a aucune dépendance runtime, ce qui permet d'en produire un exécutable autonome (aucun Python requis pour l'utiliser) via [PyInstaller](https://pyinstaller.org/) :
+
+```bash
+make build
+```
+
+Équivaut à :
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m PyInstaller --onefile --name dbml2sql dbml2sql.py
+```
+
+Le binaire est produit dans `dist/` (`dist/dbml2sql` sous Linux/macOS, `dist/dbml2sql.exe` sous Windows) et s'utilise exactement comme le script :
+
+```bash
+./dist/dbml2sql mon_schema.dbml mon_schema.sql
+```
+
+**Binaires pré-construits pour les trois plateformes** : à chaque tag `vX.Y.Z` poussé sur le dépôt, le workflow GitHub Actions [`build.yml`](.github/workflows/build.yml) construit automatiquement un binaire Linux, macOS et Windows (chacun nommé `dbml2sql`/`dbml2sql.exe`, sans suffixe de plateforme sur le binaire lui-même) et les attache à une [Release GitHub](../../releases) sous forme d'archives `.tar.gz` (le suffixe de plateforme n'apparaît que sur l'archive, GitHub n'acceptant pas deux assets de release portant le même nom). Il peut aussi être déclenché manuellement (`workflow_dispatch`).
+
 ### Nettoyage 🧹
 
 ```bash
 make clean
 ```
 
-Supprime les répertoires `__pycache__`.
+Supprime les répertoires `__pycache__` ainsi que les artefacts de build (`build/`, `dist/`, `*.spec`).
 
 ## Structure du projet 📁
 
 ```
 dbmltool/
-├── dbml2sql.py       # programme principal (parsing DBML, validation, rendu SQL)
+├── .github/
+│   ├── workflows/
+│   │   └── build.yml       # CI : tests + binaires autonomes (Linux/macOS/Windows) sur tag vX.Y.Z
+│   └── dependabot.yml      # mises a jour automatiques (pip, GitHub Actions)
+├── dbml2sql.py             # programme principal (parsing DBML, validation, rendu SQL)
 ├── tests/
 │   ├── __init__.py
-│   └── test_dbml2sql.py   # suite de tests unitaires (unittest, stdlib uniquement)
-├── sample.dbml       # fichier DBML d'exemple, utilisé aussi comme fixture par les tests
-├── sample.sql        # sortie générée correspondante
-├── Makefile          # make venv / run / tests / clean
-├── venv/             # environnement virtuel (généré, non versionné)
+│   └── test_dbml2sql.py    # suite de tests unitaires (unittest, stdlib uniquement)
+├── sample.dbml             # fichier DBML d'exemple, utilisé aussi comme fixture par les tests
+├── sample.sql              # sortie générée correspondante
+├── Makefile                # make venv / run / tests / build / clean
+├── requirements-dev.txt    # dépendances de build uniquement (PyInstaller), pas de dépendance runtime
+├── venv/                   # environnement virtuel (généré, non versionné)
 └── README.md
 ```
 

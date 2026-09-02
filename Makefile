@@ -3,13 +3,14 @@ PYTHON  ?= python
 DBML    := input.dbml
 SQL     := output.sql
 
-.PHONY: help venv run tests clean
+.PHONY: help venv run tests build clean
 
 help:
 	@echo "Cibles disponibles :"
 	@echo "  make venv   - cree le venv (utilise PYTHON, defaut: python)"
 	@echo "  make run    - genere $(SQL) a partir de $(DBML) (le venv doit etre active)"
 	@echo "  make tests  - lance la suite de tests unitaires (le venv doit etre active)"
+	@echo "  make build  - genere un binaire autonome dans dist/ (le venv doit etre active)"
 	@echo "  make clean  - supprime les fichiers __pycache__"
 
 venv:
@@ -21,5 +22,10 @@ run:
 tests:
 	$(PYTHON) -m unittest discover -s tests -v
 
+build:
+	$(PYTHON) -m pip install -r requirements-dev.txt
+	$(PYTHON) -m PyInstaller --onefile --name dbml2sql dbml2sql.py
+
 clean:
 	find . -name "__pycache__" -type d -prune -exec rm -rf {} +
+	rm -rf build dist *.spec
