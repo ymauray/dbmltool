@@ -1,0 +1,38 @@
+Table APP_CUSTOMER [note: "descr: Customer master data, default_tablespace: APP_DATA, default_grants: [APP_USER:DISU,APP_BATCH:DISU,APP_READONLY:S,APP_ADMIN:DISU"] {
+  CUSTOMER_ID integer [note: "Sequential customer identifier"]
+  NAME varchar2(200) [note: "Customer name"]
+  EMAIL varchar2(100) [note: "Contact email address"]
+  CREATED_AT date [note: "Creation date"]
+  STATUS varchar2(2) [note: "Status code"]
+
+  indexes {
+    (CUSTOMER_ID) [pk, name: "APP_CUSTOMER_P1", note: "default_tablespace: APP_INDEX"]
+  }
+}
+
+Table APP_ORDER [note: "descr: Customer orders, tablespace: APP_DATA, grants: [APP_USER:DISU,APP_READONLY:S]"] {
+  CUSTOMER_ID integer [note: "Reference to the customer"]
+  ORDER_ID integer [note: "Sequential order identifier"]
+  ORDER_DATE date [note: "Order date"]
+  TOTAL_AMOUNT number(11,2) [note: "Total order amount"]
+
+  indexes {
+    (CUSTOMER_ID, ORDER_ID) [pk, name: "APP_ORDER_P1", note: "tablespace: APP_INDEX"]
+  }
+}
+
+Ref: APP_CUSTOMER.(CUSTOMER_ID) < APP_ORDER.(CUSTOMER_ID)
+
+Table APP_ORDER_ITEM {
+  CUSTOMER_ID integer [note: "Reference to the customer"]
+  ORDER_ID integer [note: "Reference to the order"]
+  LINE_NO integer [note: "Line number within the order"]
+  PRODUCT_CODE varchar2(30) [note: "Product code"]
+  QUANTITY number(5) [note: "Ordered quantity"]
+
+  indexes {
+    (CUSTOMER_ID, ORDER_ID, LINE_NO) [pk, name: "APP_ORDER_ITEM_P1"]
+  }
+}
+
+Ref: APP_ORDER.(CUSTOMER_ID, ORDER_ID) < APP_ORDER_ITEM.(CUSTOMER_ID, ORDER_ID)
